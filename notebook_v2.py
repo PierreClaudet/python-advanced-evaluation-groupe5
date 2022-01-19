@@ -7,9 +7,13 @@ import json
 an object-oriented version of the notebook toolbox
 """
 def load_ipynb(filename):
-    with open(filename, "r") as f:
-        return json.load(f)
+    aouvrir = open(filename)
+    b = aouvrir.read() 
+    dict = json.loads(b)
+    aouvrir.close()
+    return dict
 
+    
 def get_cells(ipynb):
     return ipynb['cells']
 

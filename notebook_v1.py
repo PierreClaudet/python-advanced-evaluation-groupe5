@@ -13,8 +13,11 @@ import ast
 an object-oriented version of the notebook toolbox
 """
 def load_ipynb(filename):
-    with open(filename, "r") as f:
-        return json.load(f)
+    aouvrir = open(filename)
+    b = aouvrir.read() 
+    dict = json.loads(b)
+    aouvrir.close()
+    return dict
 
 def get_format_version(ipynb):
     #on transforme le filename en dictionnaire
@@ -43,8 +46,9 @@ def to_percent(ipynb):
     return t
 
 def save_ipynb(ipynb, filename):
-    with open(filename, 'w+') as f:
-        f.write(str(ipynb))
+    aouvrir = open(filename, "w")
+    aouvrir.write(json.dumps(ipynb))
+    aouvrir.close() 
 
 
 
