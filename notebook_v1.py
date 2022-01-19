@@ -25,6 +25,7 @@ def get_format_version(ipynb):
 def get_cells(ipynb):
     return ipynb['cells']
 
+
 def to_percent(ipynb):
     t=''
     for cell in ipynb['cells']:
