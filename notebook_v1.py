@@ -1,9 +1,51 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# +
+# Python Standard Library
+import base64
+import io
+import json
+import pprint
 
+import ast
+# -
 """
 an object-oriented version of the notebook toolbox
 """
+def load_ipynb(filename):
+    with open(filename, "r") as f:
+        return json.load(f)
+
+def get_format_version(ipynb):
+    #on transforme le filename en dictionnaire
+    nb_format=ipynb['nbformat']
+    nb_format_minor=ipynb['nbformat_minor']
+    return f'{nb_format}'+ '.' + f'{nb_format_minor}'
+
+def get_cells(ipynb):
+    return ipynb['cells']
+
+def to_percent(ipynb):
+    t=''
+    for cell in ipynb['cells']:
+        if cell['cell_type']=='markdown':
+            t+='# %% [markdown]\n'
+            for line in cell['source']:
+                t+='# '+line
+            t+='\n'
+        else:
+            t=t+'# %% \n'
+            for line in cell['source']:
+                t=t+line
+            t=t+'\n'
+    t=t[:-1]
+    return t
+
+def save_ipynb(ipynb, filename):
+    with open(filename, 'w+') as f:
+        f.write(str(ipynb))
+
+
 
 class CodeCell:
     r"""A Cell of Python code in a Jupyter notebook.
@@ -33,7 +75,10 @@ class CodeCell:
     """
 
     def __init__(self, ipynb):
-        pass
+        self.id = ipynb["id"]
+        self.source = ipynb['source']
+        self.execution_count = ipynb["execution_count"]
+
 
 class MarkdownCell:
     r"""A Cell of Markdown markup in a Jupyter notebook.
@@ -63,7 +108,9 @@ class MarkdownCell:
     """
 
     def __init__(self, ipynb):
-        pass
+        self.id = ipynb["id"]
+        self.source = ipynb["source"]
+
 
 class Notebook:
     r"""A Jupyter Notebook.
@@ -95,10 +142,12 @@ class Notebook:
     """
 
     def __init__(self, ipynb):
-        pass
+        self.version = get_format_version(ipynb)
+        self.cells = get_cells(ipynb)
 
     @staticmethod
     def from_file(filename):
+        return(Notebook(load_ipynb(filename)))
         r"""Loads a notebook from an .ipynb file.
 
         Usage:
@@ -107,7 +156,6 @@ class Notebook:
             >>> nb.version
             '4.5'
         """
-        pass
 
     def __iter__(self):
         r"""Iterate the cells of the notebook.
@@ -121,11 +169,14 @@ class Notebook:
             b777420a
             a23ab5ac
         """
-        return iter(self.cells)
+        return iter(self.cells) 
 
+
+# On remarque que cette dernière fonction est bien définie car self.cells est une liste ; devenant ici un itérateur.
+
+# +
 class PyPercentSerializer:
     r"""Prints a given Notebook in py-percent format.
-
     Args:
         notebook (Notebook): the notebook to print.
 
@@ -145,12 +196,35 @@ class PyPercentSerializer:
             # Goodbye! 👋
     """
     def __init__(self, notebook):
-        pass
-
+        self.notebook=notebook
+    
     def to_py_percent(self):
+        nb=dict() # on s'en servira pour contenir le futur notebook
+        NB=self.notebook
+        nb['cells']=[]
+        for cellule in NB.cells:
+            nouvelle_cellule=dict() #il contiendra les cellules
+            if type(cellule)==MarkdownCell: #on construit la cellule comme dans les exemples.
+                nouvelle_cellule["cellule_type"]='markdown'
+                nouvelle_cellule['metadata']={}
+                nouvelle_cellule["id"]=cellule.id
+                nouvelle_cellule["source"]=cellule.source
+            else:
+                nouvelle_cellule['cellule_type']='code'
+                nouvelle_cellule["execution_count"]=cellule.execution_count
+                nouvelle_cellule['metadata']={}
+                nouvelle_cellule["source"]=cellule.source
+                nouvelle_cellule['outputs']=[]
+            nb['cells'].append(nouvelle_cellule) #la cellule construite appartient maintenant à la liste des cellules
+        nb['metadata']={}
+        Z=NB.version
+        Z.split('.') #afin de séparer deux indicateurs de version
+        nb['nbformat']=int(Z[0])
+        nb['nbformat_minor']=int(Z[-1])
         r"""Converts the notebook to a string in py-percent format.
         """
-        pass
+        return(to_percent(nb))
+        
 
     def to_file(self, filename):
         r"""Serializes the notebook to a file
@@ -164,7 +238,9 @@ class PyPercentSerializer:
                 >>> s = PyPercentSerializer(nb)
                 >>> s.to_file("samples/hello-world-serialized-py-percent.py")
         """
-        pass
+        ipynb=self.to_py_percent()
+        save_ipynb(ipynb,filename)
+    
 class Serializer:
     r"""Serializes a Jupyter Notebook to a file.
 
@@ -199,7 +275,7 @@ class Serializer:
     """
 
     def __init__(self, notebook):
-        pass
+        self.notebook=notebook
 
     def serialize(self):
         r"""Serializes the notebook to a JSON object
@@ -207,9 +283,32 @@ class Serializer:
         Returns:
             dict: a dictionary representing the notebook.
         """
-        pass
+        nb=dict()
+        NB=self.notebook
+        nb['cells']=[]
+        for cellule in NB.cells:
+            nouvelle_cellule=dict() 
+            if type(cellule)==MarkdownCell: 
+                nouvelle_cellule["cellule_type"]='markdown'
+                nouvelle_cellule['metadata']={}
+                nouvelle_cellule["id"]=cellule.id
+                nouvelle_cellule["source"]=cellule.source
+            else:
+                nouvelle_cellule['cellule_type']='code'
+                nouvelle_cellule["execution_count"]=cellule.execution_count
+                nouvelle_cellule['metadata']={}
+                nouvelle_cellule["source"]=cellule.source
+                nouvelle_cellule['outputs']=[]
+            nb['cells']=nb['cells']+[nouvelle_cellule]
+        nb['metadata']={}
+        Z=NB.version
+        Z.split('.') 
+        nb['nbformat']=int(Z[0])
+        nb['nbformat_minor']=int(Z[-1])
+        return(nb)
 
     def to_file(self, filename):
+        #pas compris
         r"""Serializes the notebook to a file
 
         Args:
@@ -229,34 +328,12 @@ class Serializer:
         """
         pass
 
+
+# -
+
 class Outliner:
-    r"""Quickly outlines the strucure of the notebook in a readable format.
-
-    Args:
-        notebook (Notebook): the notebook to outline.
-
-    Usage:
-
-            >>> nb = Notebook.from_file("samples/hello-world.ipynb")
-            >>> o = Outliner(nb)
-            >>> print(o.outline()) # doctest: +NORMALIZE_WHITESPACE
-                Jupyter Notebook v4.5
-                └─▶ Markdown cell #a9541506
-                    ┌  Hello world!
-                    │  ============
-                    └  Print `Hello world!`:
-                └─▶ Code cell #b777420a (1)
-                    | print("Hello world!")
-                └─▶ Markdown cell #a23ab5ac
-                    | Goodbye! 👋
-    """
-    def __init__(self, notebook):
-        self.notebook = notebook
-
+    def init(self,notebook):
+        self.notebook=notebook
     def outline(self):
-        r"""Outlines the notebook in a readable format.
-
-        Returns:
-            str: a string representing the outline of the notebook.
-        """
         pass
+

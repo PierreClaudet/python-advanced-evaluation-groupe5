@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 """
 starter code for your evaluation assignment
 """
 
+# +
 # Python Standard Library
 import base64
 import io
 import json
 import pprint
+
+# -
 
 # Third-Party Libraries
 import numpy as np
@@ -17,6 +21,11 @@ import PIL.Image  # pillow
 
 
 def load_ipynb(filename):
+    aouvrir = open(filename)
+    b = aouvrir.read() 
+    dict = json.loads(b)
+    aouvrir.close()
+    return dict
     r"""
     Load a jupyter notebook .ipynb file (JSON) as a Python dict.
 
@@ -50,10 +59,16 @@ def load_ipynb(filename):
          'nbformat': 4,
          'nbformat_minor': 5}
     """
-    pass
+
+
+ipynb=load_ipynb("samples/hello-world.ipynb")
+ipynb
 
 
 def save_ipynb(ipynb, filename):
+    aouvrir = open(filename, "w")
+    aouvrir.write(json.dumps(ipynb))
+    aouvrir.close() 
     r"""
     Save a jupyter notebook (Python dict) as a .ipynb file (JSON)
 
@@ -73,10 +88,22 @@ def save_ipynb(ipynb, filename):
         True
 
     """
-    pass
+
+
+ipynb = load_ipynb("samples/minimal.ipynb")
+ipynb
+
+ipynb["metadata"]["clone"] = True
+save_ipynb(ipynb, "samples/minimal-save-load.ipynb")
+load_ipynb("samples/minimal-save-load.ipynb")
 
 
 def get_format_version(ipynb):
+    #on transforme le filename en dictionnaire
+    nb_format=ipynb['nbformat']
+    nb_format_minor=ipynb['nbformat_minor']
+    return f'{nb_format}'+ '.' + f'{nb_format_minor}'
+
     r"""
     Return the format version (str) of a jupyter notebook (dict).
 
@@ -90,13 +117,16 @@ def get_format_version(ipynb):
         >>> get_format_version(ipynb)
         '4.5'
     """
-    pass
+
+
+ipynb = load_ipynb("samples/minimal.ipynb")
+get_format_version(ipynb)
 
 
 def get_metadata(ipynb):
+    return ipynb['metadata']
     r"""
     Return the global metadata of a notebook.
-
     Usage:
 
         >>> ipynb = load_ipynb("samples/metadata.ipynb")
@@ -114,10 +144,15 @@ def get_metadata(ipynb):
                            'pygments_lexer': 'ipython3',
                            'version': '3.9.7'}}
     """
-    pass
+
+
+ipynb = load_ipynb("samples/Hello-world.ipynb")
+metadata = get_metadata(ipynb)
+pprint.pprint(metadata)
 
 
 def get_cells(ipynb):
+    return ipynb['cells']
     r"""
     Return the notebook cells.
 
@@ -148,10 +183,28 @@ def get_cells(ipynb):
           'metadata': {},
           'source': ['Goodbye! 👋']}]
     """
-    pass
+
+
+ipynb = load_ipynb("samples/hello-world.ipynb")
+cells = get_cells(ipynb)
+pprint.pprint(cells)
 
 
 def to_percent(ipynb):
+    t=''
+    for cell in ipynb['cells']:
+        if cell['cell_type']=='markdown':
+            t+='# %% [markdown]\n'
+            for line in cell['source']:
+                t+='# '+line
+            t+='\n'
+        else:
+            t=t+'# %% \n'
+            for line in cell['source']:
+                t=t+line
+            t=t+'\n'
+    t=t[:-1]
+    return t
     r"""
     Convert a ipynb notebook (dict) to a Python code in the percent format (str).
 
@@ -175,11 +228,53 @@ def to_percent(ipynb):
         ...     with open(notebook_file.with_suffix(".py"), "w", encoding="utf-8") as output:
         ...         print(percent_code, file=output)
     """
-    pass
 
 
-def starboard_html(code):
-    return f"""
+ipynb = load_ipynb("samples/hello-world.ipynb")
+print(to_percent(ipynb)) 
+
+
+# +
+# def starboard_html(code):
+#     return f"""
+# <!doctype html>
+# <html>
+#     <head>
+#         <meta charset="utf-8">
+#         <title>Starboard Notebook</title>
+#         <meta name="viewport" content="width=device-width,initial-scale=1">
+#         <link rel="icon" href="https://cdn.jsdelivr.net/npm/starboard-notebook@0.15.2/dist/favicon.ico">
+#         <link href="https://cdn.jsdelivr.net/npm/starboard-notebook@0.15.2/dist/starboard-notebook.css" rel="stylesheet">
+#     </head>
+#     <body>
+#         <script>
+#             window.initialNotebookContent = {code!r}
+#             window.starboardArtifactsUrl = `https://cdn.jsdelivr.net/npm/starboard-notebook@0.15.2/dist/`;
+#         </script>
+#         <script src="https://cdn.jsdelivr.net/npm/starboard-notebook@0.15.2/dist/starboard-notebook.js"></script>
+#     </body>
+# </html>
+# """
+# -
+
+def to_starboard(ipynb, html=False):
+    t=''
+    for cell in ipynb['cells']:
+        if cell['cell_type']=='markdown':
+            t+='# %% [markdown]'+'\n'
+            for line in cell['source']:
+                t+=line 
+            t+='\n\n'
+        else:
+            t=t+'# %% [python]'+'\n'
+            for line in cell['source']:
+                t=t+line
+            t=t+'\n\n'
+        t=t[:-1]
+    if html ==False:
+        return t
+    else:
+        return f'''
 <!doctype html>
 <html>
     <head>
@@ -191,16 +286,13 @@ def starboard_html(code):
     </head>
     <body>
         <script>
-            window.initialNotebookContent = {code!r}
+            window.initialNotebookContent = {t!r}
             window.starboardArtifactsUrl = `https://cdn.jsdelivr.net/npm/starboard-notebook@0.15.2/dist/`;
         </script>
         <script src="https://cdn.jsdelivr.net/npm/starboard-notebook@0.15.2/dist/starboard-notebook.js"></script>
     </body>
 </html>
-"""
-
-
-def to_starboard(ipynb, html=False):
+'''
     r"""
     Convert a ipynb notebook (dict) to a Starboard notebook (str)
     or to a Starboard HTML document (str) if html is True.
@@ -232,7 +324,10 @@ def to_starboard(ipynb, html=False):
         ...     with open(notebook_file.with_suffix(".html"), "w", encoding="utf-8") as output:
         ...         print(starboard_html, file=output)
     """
-    pass
+
+
+ipynb=load_ipynb("samples/hello-world.ipynb")
+print(to_starboard(ipynb))
 
 
 # Outputs
@@ -288,7 +383,17 @@ def clear_outputs(ipynb):
          'nbformat': 4,
          'nbformat_minor': 5}
     """
-    pass
+    for cellule in ipynb['cells']:
+        if cellule['cell_type']=='code':
+            cellule['outputs']=[]
+            cellule['execution_count'] = None
+
+
+ipynb = load_ipynb("samples/hello-world.ipynb")
+pprint.pprint(ipynb)
+
+clear_outputs(ipynb)
+pprint.pprint(ipynb)
 
 
 def get_stream(ipynb, stdout=True, stderr=False):
@@ -306,10 +411,37 @@ def get_stream(ipynb, stdout=True, stderr=False):
         👋 Hello world! 🌍
         🔥 This is fine. 🔥 (https://gunshowcomic.com/648)
     """
-    pass
+    text=''
+    for dic in ipynb['cells']:
+        if dic['cell_type']=='code':
+            for output in dic['outputs']:
+                if stdout==True:
+                    if output['name']=='stdout':
+                        for element in output['text']:
+                            text=text+element
+                            
+                if stderr==True:
+                    if output['name']=='stdder':
+                        for element in output['text']:
+                            text=text+element
+    return text            
+
+
+ipynb = load_ipynb("samples/Hello-world.ipynb")
+print(get_stream(ipynb))
 
 
 def get_exceptions(ipynb):
+    liste_d_erreur=[]
+    for cellule in ipynb['cells']:
+        if cellule['cell_type']=='markdown':
+            for output in cells[1]['outputs']:
+                if output['output_type']=='error':
+                    text=eval(output['ename'] + '(\"' +f"{output['evalue']}" +'\)"' )
+                    liste_d_erreur.append(text)
+    return liste_d_erreur
+            
+    
     r"""
     Return all exceptions raised during cell executions.
 
@@ -328,10 +460,23 @@ def get_exceptions(ipynb):
         TypeError("unsupported operand type(s) for +: 'int' and 'str'")
         Warning('🌧️  light rain')
     """
-    pass
+
 
 
 def get_images(ipynb):
+    output=[]
+    Liste_Cell=get_cells(ipynb)
+    for cellule in Liste_Cell:
+        for content in cellule['outputs']:
+            try:
+                str_64=content['data']['image/png']
+                str_decode=base64.b64decode(str_64)
+                image=PIL.Image.open(io.BytesIO(str_decode))
+                output=output+[np.array(image)]
+            except:
+                pass
+    return output
+                
     r"""
     Return the PNG images contained in a notebook cells outputs
     (as a list of NumPy arrays).
@@ -352,4 +497,15 @@ def get_images(ipynb):
                 ...,
                 [ 14,  13,  19]]], dtype=uint8)
     """
-    pass
+
+
+
+ipynb = load_ipynb("samples/images.ipynb")
+images = get_images(ipynb)
+images
+
+
+
+
+
+
